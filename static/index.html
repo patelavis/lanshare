@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>LANShare</title>
+  <link rel="stylesheet" href="./static/assets/style.css">
+</head>
+
+<body>
+  <div id="app">
+
+    <!-- ── Header ──────────────────────────────────────────────── -->
+    <header>
+      <div class="logo">LAN<span>Share</span></div>
+      <div class="header-status">
+        <div class="dot" id="ws-dot"></div>
+        <span id="ws-label">connecting…</span>
+        <span style="color:var(--border2)">|</span>
+        <span id="my-name" style="color:var(--text)"></span>
+        <span style="color:var(--text2)" id="my-ip"></span>
+      </div>
+    </header>
+
+    <div class="main">
+
+      <!-- ── Sidebar: device list ────────────────────────────── -->
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          Devices
+          <span class="select-all-btn" onclick="toggleSelectAll()">select all</span>
+        </div>
+        <div class="device-list" id="device-list">
+          <div class="empty" style="padding:30px 14px;font-size:11px">
+            <div class="empty-icon">📡</div>
+            Waiting for devices…
+          </div>
+        </div>
+      </aside>
+
+      <!-- ── Content ─────────────────────────────────────────── -->
+      <div class="content">
+        <div class="tabs">
+          <div class="tab active" data-tab="send">Send</div>
+          <div class="tab" data-tab="transfers">Transfers <span class="badge" id="active-badge"
+              style="display:none">0</span></div>
+          <div class="tab" data-tab="files">Files</div>
+          <div class="tab" data-tab="sync">Sync</div>
+          <div class="tab" data-tab="log">Log</div>
+        </div>
+
+        <!-- ── Send panel ── -->
+        <div class="panel active" id="tab-send">
+          <div class="drop-zone" id="drop-zone">
+            <div class="drop-icon">📁</div>
+            <div class="drop-title">Drop files here</div>
+            <div class="drop-sub">or click to browse · any file type · no size limit</div>
+            <input type="file" id="file-input" multiple style="display:none" />
+          </div>
+
+          <div id="send-queue" class="file-list"></div>
+
+          <div class="send-bar" id="send-bar" style="display:none">
+            <div class="send-bar-info">
+              <div id="send-summary" style="margin-bottom:2px;font-size:13px;color:var(--text)"></div>
+              <div style="font-size:11px;font-family:var(--mono);color:var(--text2)" id="send-targets-label">No devices
+                selected</div>
+            </div>
+            <button class="btn btn-ghost" onclick="clearQueue()">Clear</button>
+            <button class="btn btn-primary" id="send-btn" onclick="sendFiles()" disabled>
+              ⬆ Send
+            </button>
+          </div>
+
+          <div id="no-files-hint"
+            style="color:var(--text3);font-family:var(--mono);font-size:12px;text-align:center;padding:20px 0">
+            Add files above, then select device(s) in the sidebar →
+          </div>
+        </div>
+
+        <!-- ── Transfers panel ── -->
+        <div class="panel" id="tab-transfers">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div style="font-size:13px;color:var(--text2)">Active & recent transfers</div>
+            <button class="btn btn-ghost" onclick="clearDoneTransfers()">Clear done</button>
+          </div>
+          <div id="transfers-list"></div>
+          <div class="empty" id="transfers-empty">
+            <div class="empty-icon">📶</div>
+            No transfers yet
+          </div>
+        </div>
+
+        <!-- ── Files panel ── -->
+        <div class="panel" id="tab-files">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div style="font-size:13px;color:var(--text2)" id="files-count">Received files</div>
+            <button class="btn btn-ghost" onclick="loadFiles()">↻ Refresh</button>
+          </div>
+          <div class="files-grid" id="files-grid"></div>
+          <div class="empty" id="files-empty" style="display:none">
+            <div class="empty-icon">📂</div>
+            No files received yet
+          </div>
+        </div>
+
+        <!-- ── Sync panel ── -->
+        <div class="panel" id="tab-sync">
+          <div class="sync-config">
+            <label>SYNC ROOM NAME</label>
+            <input id="sync-room" type="text" placeholder="e.g. project-alpha" value="default" />
+            <label>LOCAL FOLDER PATH (virtual — browser paths are sandboxed)</label>
+            <input id="sync-folder" type="text" placeholder="/home/user/shared" value="/shared" />
+            <div style="display:flex;gap:10px">
+              <button class="btn btn-primary" onclick="joinSyncRoom()">⚡ Join Sync Room</button>
+              <button class="btn btn-ghost" onclick="leaveSyncRoom()">Leave</button>
+            </div>
+          </div>
+          <div id="sync-status" style="font-family:var(--mono);font-size:12px;color:var(--text2);padding:10px 0"></div>
+          <div id="sync-diff-result"></div>
+        </div>
+
+        <!-- ── Log panel ── -->
+        <div class="panel" id="tab-log">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="font-size:13px;color:var(--text2)">Event log</div>
+            <button class="btn btn-ghost" onclick="clearLog()">Clear</button>
+          </div>
+          <div class="log-console" id="log-console"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Invitation modal ── -->
+  <div class="overlay hidden" id="invite-overlay">
+    <div class="modal">
+      <div class="modal-title">📥 Incoming Transfer</div>
+      <div class="modal-sub" id="invite-from"></div>
+      <div class="modal-files" id="invite-files"></div>
+      <div class="modal-actions">
+        <button class="btn btn-danger" onclick="rejectTransfer()">✗ Reject</button>
+        <button class="btn btn-primary" onclick="acceptTransfer()">✓ Accept</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toasts ── -->
+  <div id="toasts"></div>
+
+  <script src="./static/assets/script.js"></script>
+</body>
+
+</html>
